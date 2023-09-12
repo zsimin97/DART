@@ -31,7 +31,7 @@ use         utilities_mod,  only : find_namelist_in_file, check_namelist_read, &
                                    find_enclosing_indices
 use          obs_kind_mod,  only : QTY_SURFACE_ELEVATION, QTY_PRESSURE, &
                                    QTY_GEOMETRIC_HEIGHT, QTY_VERTLEVEL, &
-                                   QTY_SURFACE_PRESSURE, &
+                                   QTY_SURFACE_PRESSURE, QTY_1D_PARAMETER, &
                                    QTY_TEMPERATURE, QTY_SPECIFIC_HUMIDITY, &
                                    QTY_MOLEC_OXYGEN_MIXING_RATIO, &
                                    QTY_ION_O_MIXING_RATIO, QTY_ATOMIC_H_MIXING_RATIO, &
@@ -94,9 +94,9 @@ use    cam_common_code_mod, only : above_ramp_start, are_damping, build_cam_pres
                                    set_vert_localization, vert_interp, vertical_localization_type, write_model_time
 
 use cam_common_code_mod, only : nc_write_model_atts, grid_data, read_grid_info, &
-                                set_cam_variable_info, MAX_STATE_VARIABLES, &
+                                set_cam_variable_info, set_estimate_variable_info, MAX_STATE_VARIABLES, &
                                 num_state_table_columns, MAX_PERT, &
-                                shortest_time_between_assimilations, domain_id, &
+                                shortest_time_between_assimilations, domain_id, gw_domain_id &
                                 cuse_log_vertical_scale, &
                                 cno_normalization_of_scale_heights, &
                                 cdebug_level, &
@@ -296,6 +296,7 @@ csuppress_grid_info_in_output = suppress_grid_info_in_output
 call set_calendar_type('GREGORIAN')
 
 call read_grid_info(cam_template_filename)
+call read_grid_info(tau_file_name)
 ! This non-state variable is used to compute surface elevation.
 call read_cam_phis_array(cam_phis_filename)
 call setup_interpolation() !grid is global
@@ -306,11 +307,14 @@ call init_globals()
 ! read the namelist &model_nml :: state_variables
 ! to set up what will be read into the cam state vector
 call set_cam_variable_info(cam_template_filename, state_variables)
+if (estimate_tau) then
+   call set_estimate_variable_info(tau_file_name,state_variables)
+endif
 
 call fill_cam_stagger_info(grid_stagger)
 
 if (debug_level > 100) call state_structure_info(domain_id)
-
+if (debug_level > 100) call state_structure_info(gw_domain_id)
 
 ! convert from string in namelist to integer (e.g. VERTISxxx)
 ! and tell the dart code which vertical type we want to localize in.
