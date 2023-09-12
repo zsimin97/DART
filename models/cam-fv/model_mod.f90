@@ -203,9 +203,7 @@ namelist /model_nml/  &
    no_normalization_of_scale_heights,   &
    use_variable_mean_mass,              &
    using_chemistry,                     &
-   debug_level
-
-namelist /GW_estimate_nml/  &
+   debug_level,                         &
    estimate_tau,                        &
    tau_file_name
 
