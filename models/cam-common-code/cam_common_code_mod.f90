@@ -12,7 +12,7 @@ use      utilities_mod,     only : E_ERR, E_MSG,  error_handler, find_enclosing_
                                    array_dump, file_exist, string_to_logical, string_to_real
 
 use          obs_kind_mod,  only : QTY_SURFACE_ELEVATION, QTY_SURFACE_PRESSURE, QTY_PRESSURE, QTY_VERTLEVEL, &
-                                   QTY_GEOMETRIC_HEIGHT, &
+                                   QTY_GEOMETRIC_HEIGHT, QTY_1D_PARAMETER, &
                                    get_quantity_for_type_of_obs, get_num_quantities, get_index_for_quantity
 
 use          location_mod,  only : location_type, get_close_type, vertical_localization_on, get_dist,  &
@@ -62,9 +62,9 @@ public :: above_ramp_start, are_damping, build_cam_pressure_columns, build_heigh
           read_model_time, ref_model_top_pressure, ref_nlevels, scale_height, &
           set_vert_localization, vert_interp, vertical_localization_type, write_model_time
 
-public :: nc_write_model_atts, grid_data, read_grid_info, set_cam_variable_info, &
+public :: nc_write_model_atts, grid_data, read_grid_info, set_cam_variable_info, set_estimate_variable_info, &
           MAX_STATE_VARIABLES, num_state_table_columns, common_initialized, &
-          MAX_PERT, shortest_time_between_assimilations, domain_id, &
+          MAX_PERT, shortest_time_between_assimilations, domain_id, gw_domain_id, &
           ccustom_routine_to_generate_ensemble, &
           cfields_to_perturb, &
           cperturbation_amplitude, &
@@ -106,6 +106,7 @@ type(cam_grid) :: grid_data
 ! this id allows us access to all of the state structure
 ! info and is required for getting state variables.
 integer :: domain_id = -1
+integer :: gw_domain_id = -1
 
 integer, parameter :: MAX_STATE_VARIABLES = 100
 integer, parameter :: num_state_table_columns = 5
@@ -258,7 +259,82 @@ domain_id = add_domain(cam_template_filename, nfields, var_names, kind_list, &
 
 end subroutine set_cam_variable_info
 
+subroutine set_estimate_variable_info(tau_file_name, cam_template_filename, variable_array)
 
+character(len=*), intent(in)  :: tau_file_name
+character(len=*), intent(in)  :: cam_template_filename
+character(len=*), intent(in)  :: variable_array(:)
+
+character(len=*), parameter :: routine = 'set_estimate_variable_info:'
+
+integer :: i, nfields
+integer, parameter :: MAX_STRING_LEN = 128
+
+character(len=MAX_STRING_LEN) :: varname    ! column 1, NetCDF variable name
+character(len=MAX_STRING_LEN) :: dartstr    ! column 2, DART Quantity
+character(len=MAX_STRING_LEN) :: minvalstr  ! column 3, Clamp min val
+character(len=MAX_STRING_LEN) :: maxvalstr  ! column 4, Clamp max val
+character(len=MAX_STRING_LEN) :: updatestr  ! column 5, Update output or not
+
+character(len=vtablenamelength) :: var_names(MAX_STATE_VARIABLES) = ' '
+logical  :: update_list(MAX_STATE_VARIABLES)   = .FALSE.
+integer  ::   kind_list(MAX_STATE_VARIABLES)   = MISSING_I
+real(r8) ::  clamp_vals(MAX_STATE_VARIABLES,2) = MISSING_R8
+
+nfields = 0
+ParseVariables : do i = 1, MAX_STATE_VARIABLES
+
+   varname   = variable_array(num_state_table_columns*i-4)
+   dartstr   = variable_array(num_state_table_columns*i-3)
+   minvalstr = variable_array(num_state_table_columns*i-2)
+   maxvalstr = variable_array(num_state_table_columns*i-1)
+   updatestr = variable_array(num_state_table_columns*i  )
+
+   if ( varname == ' ' .and. dartstr == ' ' ) exit ParseVariables ! Found end of list.
+
+   if ( varname == ' ' .or.  dartstr == ' ' ) then
+      string1 = 'model_nml:model "state_variables" not fully specified'
+      call error_handler(E_ERR,routine,string1,source,revision,revdate)
+   endif
+
+   ! Make sure DART kind is valid
+
+   if( get_index_for_quantity(dartstr) < 0 ) then
+      write(string1,'(3A)') 'there is no obs_kind "', trim(dartstr), '" in obs_kind_mod.f90'
+      call error_handler(E_ERR,routine,string1,source,revision,revdate)
+   endif
+
+   call to_upper(minvalstr)
+   call to_upper(maxvalstr)
+   call to_upper(updatestr)
+
+   var_names(   i) = varname
+   kind_list(   i) = get_index_for_quantity(dartstr)
+   clamp_vals(i,1) = string_to_real(minvalstr)
+   clamp_vals(i,2) = string_to_real(maxvalstr)
+   update_list( i) = string_to_logical(updatestr, 'UPDATE')
+
+   nfields = nfields + 1
+
+enddo ParseVariables
+
+if (nfields == MAX_STATE_VARIABLES) then
+   write(string1,'(2A)') 'WARNING: There is a possibility you need to increase ', &
+                         'MAX_STATE_VARIABLES in the global variables in model_mod.f90'
+
+   write(string2,'(A,i4,A)') 'WARNING: you have specified at least ', nfields, &
+                             ' perhaps more'
+
+   call error_handler(E_MSG,routine,string1,source,revision,revdate,text2=string2)
+endif
+
+! CAM only has a single domain (only a single grid, no nests or multiple grids)
+
+domain_id = add_domain(cam_template_filename, nfields, var_names, kind_list, &
+                       clamp_vals, update_list)
+gw_domain_id = add_domain(tau_file_name, 1, gw_tau, QTY_1D_PARAMETER)
+
+end subroutine set_estimate_variable_info
 
 !-----------------------------------------------------------------------
 !> Read the data from the various cam grid arrays 
