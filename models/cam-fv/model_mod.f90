@@ -2392,6 +2392,15 @@ do i=1, num_close
 enddo
 
 
+if (estimate_tau) then
+   do i=1, num_close
+     q_ind= close_ind(i)
+       if (loc_qtys(q_ind)== QTY_1D_PARAMETER) then
+         disk(i) = dist(i) * 0.8_r8
+       endif
+    enddo
+endif 
+
 end subroutine get_close_state
 
 !===================================================================
