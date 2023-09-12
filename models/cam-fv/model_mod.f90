@@ -164,6 +164,9 @@ real(r8)           :: perturbation_amplitude(MAX_PERT)= 0.0_r8
 logical            :: using_chemistry                 = .false.
 logical            :: use_variable_mean_mass          = .false.
 
+character(len=256) :: tau_file_name                   = 'GW_tau.nc'
+logical            :: estimate_tau                    = .true.
+
 ! in converting to scale height for the vertical: 
 !  set this to .true. to compute the log of the pressure.  
 !  set this to .false. to additionally normalize by the surface
