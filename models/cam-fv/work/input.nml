@@ -221,6 +221,9 @@
    assimilation_period_seconds    = 21600
    suppress_grid_info_in_output   = .false.
    debug_level                    = 0
+
+   estimate_tau                   =.true.
+   tau_file_name                  ='gw_tau.nc'
    /
 
 ! Other fields in the CAM initial file, which could be included in the model state:
