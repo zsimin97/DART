@@ -361,7 +361,7 @@ integer(i8) :: get_model_size
 
 if ( .not. module_initialized ) call static_init_model
 
-get_model_size = get_domain_size(domain_id)
+get_model_size = get_domain_size(domain_id)+1
 
 end function get_model_size
 
@@ -390,12 +390,13 @@ integer, optional,   intent(out) :: var_type
 
 integer  :: iloc, vloc, jloc
 integer  :: myvarid, myqty, nd
+integer  :: mydom
 
 if ( .not. module_initialized ) call static_init_model
 
-call get_model_variable_indices(index_in, iloc, jloc, vloc, var_id=myvarid, kind_index=myqty)
+call get_model_variable_indices(index_in, iloc, jloc, vloc, var_id=myvarid, dom_id=mydom, kind_index=myqty)
 
-nd = get_num_dims(domain_id, myvarid)
+nd = get_num_dims(mydom, myvarid)
 
 location = get_location_from_index(iloc, jloc, vloc, myqty, nd)
 
