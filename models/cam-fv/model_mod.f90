@@ -577,17 +577,23 @@ character(len=*), parameter :: routine = 'get_values_from_single_level:'
 
 integer :: varid
 integer(i8) :: state_indx
+integer :: dom_id
 
 varid = get_varid_from_kind(domain_id, qty)
+dom_id = domain_id
 if (varid < 0) then
-   vals(:) = MISSING_R8
-   my_status = 12
-   return
+   varid = get_varid_from_kind(gw_domain_id, qty)
+   dom_id = gw_domain_id
+   if (varid < 0) then
+     vals(:) = MISSING_R8
+     my_status = 12
+     return
+   endif
 endif
 
-state_indx = get_dart_vector_index(lon_index, lat_index, lev_index, domain_id, varid)
-if (state_indx < 1 .or. state_indx > get_domain_size(domain_id)) then
-   write(string1, *) 'state_index out of range: ', state_indx, ' not between ', 1, get_domain_size(domain_id)
+state_indx = get_dart_vector_index(lon_index, lat_index, lev_index, dom_id, varid)
+if (state_indx < 1 .or. state_indx > get_domain_size(dom_id)) then
+   write(string1, *) 'state_index out of range: ', state_indx, ' not between ', 1, get_domain_size(dom_id)
    call error_handler(E_ERR,routine,string1,source,revision,revdate,text2=string2,text3='should not happen')
 endif
 vals(:) = get_state(state_indx, ens_handle)
@@ -644,10 +650,13 @@ do i=1, ens_size
    state_indx = get_dart_vector_index(lon_index, lat_index, lev_index(i), domain_id, varid)
 
    if (state_indx < 0) then
-      write(string1,*) 'Should not happen: could not find dart state index from '
-      write(string2,*) 'lon, lat, and lev index :', lon_index, lat_index, lev_index
-      call error_handler(E_ERR,routine,string1,source,revision,revdate,text2=string2)
-      return
+      state_indx = get_dart_vector_index(lon_index, lat_index, lev_index(i), gw_domain_id, varid)
+      if (state_indx < 0) then
+          write(string1,*) 'Should not happen: could not find dart state index from '
+          write(string2,*) 'lon, lat, and lev index :', lon_index, lat_index, lev_index
+          call error_handler(E_ERR,routine,string1,source,revision,revdate,text2=string2)
+          return
+      endif    
    endif
 
    temp_vals(:) = get_state(state_indx, ens_handle)    ! all the ensemble members for level (i)
