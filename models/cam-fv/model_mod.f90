@@ -397,6 +397,10 @@ if ( .not. module_initialized ) call static_init_model
 call get_model_variable_indices(index_in, iloc, jloc, vloc, var_id=myvarid, dom_id=mydom, kind_index=myqty)
 
 nd = get_num_dims(mydom, myvarid)
+if (get_variable_name(mydom, myvarid) == 'gw_tau') then
+   location = get_location(iloc, jlat, 1.0D-4 ,VERTISUNDEF)
+   return
+endif
 
 location = get_location_from_index(iloc, jloc, vloc, myqty, nd)
 
