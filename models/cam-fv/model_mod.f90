@@ -205,6 +205,10 @@ namelist /model_nml/  &
    using_chemistry,                     &
    debug_level
 
+namelist /GW_estimate_nml/  &
+   estimate_tau,                        &
+   tau_file_name
+
 ! global variables
 character(len=512) :: string1, string2, string3
 logical, save      :: module_initialized = .false.
