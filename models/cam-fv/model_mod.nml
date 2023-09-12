@@ -40,5 +40,7 @@
    using_chemistry                     = .false.
    use_variable_mean_mass              = .false.
    debug_level                         = 0
+   estimate_tau                   =.true.
+   tau_file_name                  ='gw_tau.nc'
 /
 
