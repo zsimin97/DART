@@ -306,7 +306,7 @@ call init_globals()
 ! to set up what will be read into the cam state vector
 call set_cam_variable_info(cam_template_filename, state_variables)
 if (estimate_tau) then
-   call set_estimate_variable_info(tau_file_name,state_variables)
+   call set_estimate_variable_info(tau_file_name, cam_template_filename, state_variables)
 endif
 
 call fill_cam_stagger_info(grid_stagger)
