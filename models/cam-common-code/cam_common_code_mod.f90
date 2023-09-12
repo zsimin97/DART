@@ -330,7 +330,7 @@ endif
 
 ! CAM only has a single domain (only a single grid, no nests or multiple grids)
 
-domain_id = add_domain(cam_template_filename, nfields, var_names, kind_list, &
+domain_id = add_domain(cam_template_filename, nfields-1, var_names, kind_list, &
                        clamp_vals, update_list)
 gw_domain_id = add_domain(tau_file_name, 1, gw_tau, QTY_1D_PARAMETER)
 
