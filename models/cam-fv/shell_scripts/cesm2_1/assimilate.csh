@@ -54,7 +54,10 @@ setenv save_all_inf TRUE
 # Mean and sd will always be saved.
 setenv save_stages_freq RESTART_TIMES
 
-set BASEOBSDIR = /glade/scratch/zsimin/waccmx_gen_synobs_test/run
+#set BASEOBSDIR = /glade/p/hao/itmodel/chihting/nick_obs_all_iono_gold_icon/
+#set BASEOBSDIR = /glade/p/hao/itmodel/nickp/dart_obs/hourly_obs_seq.updated/nick_obs_all_iono_gold_icon/
+#set BASEOBSDIR = /glade/p/hao/itmodel/nickp/dart_obs/hourly_obs_seq.updated/nick_obs_all/
+set BASEOBSDIR = /glade/work/zsimin/syn_obs/1.5
 
 # ==============================================================================
 # standard commands:
@@ -94,7 +97,7 @@ switch ($HOSTNAME)
    case ch*:
       # Kluge to make batch environment consistent with the login invironment,
       # where DART executables were built.  Not fixed as of 2018-1-25.
-      module switch mpt mpt/2.15
+      #module switch mpt mpt/2.15
       # PBS_NUM_PPN unavailable for some reason, so set manually.  
       # set TASKS_PER_NODE = $PBS_NUM_PPN 
       set TASKS_PER_NODE = 36
@@ -280,8 +283,8 @@ if ($#log_list >= 3) then
    else
       # Optionally COPY inflation restarts to the same place as the other inflation restarts.
       if ($save_all_inf =~ TRUE) then
-         if ($COPY == "FALSE") \
-            echo 'Copying ${CASE}*inf*${day_time}*  ${archive}/esp/hist '
+#         if ($COPY == "FALSE") \
+#            echo 'Copying ${CASE}*inf*${day_time}*  ${archive}/esp/hist '
          $COPY            ${CASE}*inf*${day_time}*  ${archive}/esp/hist
       endif
 
@@ -354,15 +357,16 @@ echo "valid time of model is $ATM_YEAR $ATM_MONTH $ATM_DAY $ATM_HOUR (hours)"
 # PERFECT model obs output appends .perfect to the filenames
 
 set YYYYMM   = `printf %04d%02d                ${ATM_YEAR} ${ATM_MONTH}`
-if (! -d ${BASEOBSDIR}) then
-   echo "CESM+DART requires 6 hourly obs_seq files in directories of the form YYYYMM_6H_CESM"
-   echo "The directory ${BASEOBSDIR}/${YYYYMM}_6H_CESM is not found.  Exiting"
-   exit 60
-endif
-
+#set OBSFNAME = `printf obs_seq.LA+S+A+COSMIC+GOLD+ICON+GNDTEC-WXGRD_%04d%02d%02d%02d ${ATM_YEAR} ${ATM_MONTH} ${ATM_DAY} ${ATM_HOUR}`
 set OBSFNAME = `printf cam_obs_seq.%04d-%02d-%02d-%05d.perfect ${ATM_YEAR} ${ATM_MONTH} ${ATM_DAY} ${ATM_SECONDS}`
-
+#if (! -d ${BASEOBSDIR}/${YYYYMM}_6H_CESM) then
+#   echo "CESM+DART requires 6 hourly obs_seq files in directories of the form YYYYMM_6H_CESM"
+#   echo "The directory ${BASEOBSDIR}/${YYYYMM}_6H_CESM is not found.  Exiting"
+#   exit 60
+#endif
+#set OBS_FILE = ${BASEOBSDIR}/${YYYYMM}_1H/${OBSFNAME}
 set OBS_FILE = ${BASEOBSDIR}/${OBSFNAME}
+
 echo "OBS_FILE = $OBS_FILE"
 
 if (  -e   ${OBS_FILE} ) then
@@ -632,6 +636,25 @@ set input_file_list = $line[2]
 
 $LIST -1 ${CASE}.cam_[0-9][0-9][0-9][0-9].i.${ATM_DATE_EXT}.nc >! $input_file_list
 
+# NMP update the O+ in the initial file from MMR to EDENS
+module load nco
+#@ i = 1
+#while ($i <= 40)
+#  set inst_string = `printf %04d $i`
+#  set h1_file = ${CASE}.cam_${inst_string}.h1.${ATM_DATE_EXT}.nc
+#  set init_file = ${CASE}.cam_${inst_string}.i.${ATM_DATE_EXT}.nc
+##  # extract only O+
+#  ncks  -O -v EDens $h1_file tmp_h1.nc
+#  # convert to double (from float)
+#  ncap2 -O -s 'EDens = double(EDens)' tmp_h1.nc tmp_h2.nc
+##  # remove Op from initial file
+##  # combine Op from h1 into tmp_init.nc
+#   ncks -A -v EDens tmp_h2.nc $init_file
+#   rm tmp_h1.nc tmp_h2.nc
+#  @ i = $i + 1
+#end
+
+
 # If the file names in $output_state_file_list = names in $input_state_file_list,
 # then the restart file contents will be overwritten with the states updated by DART.
 # This is the behavior from DART1.0.
@@ -697,7 +720,7 @@ foreach FILE (`$LIST ${stages_all}_{mean,sd}*.nc`)
 
    set type = "e"
    echo $FILE | grep "put"
-   if ($status == 0) set type = "i"
+   #if ($status == 0) set type = "i"
 
    if ($MOVEV == FALSE ) \
       echo "moving $FILE ${CASE}.dart.${type}.${scomp}_$parts[1].${ATM_DATE_EXT}.nc"
@@ -778,6 +801,14 @@ while ( ${member} <= ${ensemble_size} )
 end
 
 if ($cycle == $DATA_ASSIMILATION_CYCLES) then
+
+
+   rm /glade/scratch/nickp/archive/${CASE}/atm/hist/*.preassim.*
+   rm /glade/scratch/nickp/archive/${CASE}/atm/hist/*.i.*
+   #rm /glade/p/hao/itmodel/nickp/archive/${CASE}/atm/hist/*.preassim.*
+   #rm /glade/p/hao/itmodel/nickp/archive/${CASE}/atm/hist/*.i.*
+
+
    if ($#log_list >= 3) then
       # During the last cycle, hide the 2nd newest restart set 
       # so that it's not archived, but is available for debugging.
@@ -842,34 +873,34 @@ if ($cycle == $DATA_ASSIMILATION_CYCLES) then
    # since the inflation restart files have the component names in them.
    # The have suffix (file type) .rh. in their names.
 
-   set inf_list = `ls *output_{prior,post}inf_*.${ATM_DATE_EXT}.nc`
-   set file_list = 'restart_hist = "./'$inf_list[1]\"
-   set i = 2
-   while ($i <= $#inf_list)
-      set file_list = (${file_list}\, \"./$inf_list[$i]\")
-      @ i++
-   end
-   cat << ___EndOfText >! inf_restart_list.cdl
-       netcdf template {  // CDL file which ncgen will use to make a DART restart file
-                          // containing just the names of the needed inflation restart files.
-       dimensions:
-            num_files = $#inf_list;
-       variables:
-            string  restart_hist(num_files);
-            restart_hist:long_name = "DART restart history file names";
-       data:
-            $file_list;
-       }
-___EndOfText
-
-   switch ($HOSTNAME)
-      case ch*:
-         # These are needed after the /glade/p fix, in order to use ncgen 
-         # for inflation history restart file handling.
-         module load pnetcdf/1.8.0 netcdf-mpi/4.4.1.1
-   endsw
-   ncgen -k netCDF-4 -o ${CASE}.dart.r.${scomp}.${ATM_DATE_EXT}.nc inf_restart_list.cdl
-   if ($status == 0) $REMOVE inf_restart_list.cdl
+#   set inf_list = `ls *output_{prior,post}inf_*.${ATM_DATE_EXT}.nc`
+#   set file_list = 'restart_hist = "./'$inf_list[1]\"
+#   set i = 2
+#   while ($i <= $#inf_list)
+#      set file_list = (${file_list}\, \"./$inf_list[$i]\")
+#      @ i++
+#   end
+#   cat << ___EndOfText >! inf_restart_list.cdl
+#       netcdf template {  // CDL file which ncgen will use to make a DART restart file
+#                          // containing just the names of the needed inflation restart files.
+#       dimensions:
+#            num_files = $#inf_list;
+#       variables:
+#            string  restart_hist(num_files);
+#            restart_hist:long_name = "DART restart history file names";
+#       data:
+#            $file_list;
+#       }
+#___EndOfText
+#
+#   switch ($HOSTNAME)
+#      case ch*:
+#         # These are needed after the /glade/p fix, in order to use ncgen 
+#         # for inflation history restart file handling.
+#         module load pnetcdf/1.8.0 netcdf-mpi/4.4.1.1
+#   endsw
+#   ncgen -k netCDF-4 -o ${CASE}.dart.r.${scomp}.${ATM_DATE_EXT}.nc inf_restart_list.cdl
+#   if ($status == 0) $REMOVE inf_restart_list.cdl
 
    switch ($HOSTNAME)
       case ch*:
