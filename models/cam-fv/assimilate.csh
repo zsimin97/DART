@@ -910,8 +910,8 @@ if ($cycle == $DATA_ASSIMILATION_CYCLES) then
 endif   
 
 for ((ie=1; ie<=$ensemble_size; ie++)); do
-  gw_tau=$(ncdump -v gw_tau gw_tau.nc | grep "gw_tau =" | awk '{print $3}' | sed 's/;//')
-  echo "gw_tau = $gw_tau" > "user_nl_cam_$(printf "%04d" $ie)"
+  gw_tau=$(ncdump -v gw_tau -h "gw_tau_$(printf "%04d" $ie).nc" | grep "gw_tau =" | awk '{print $3}' | sed 's/;//')
+  echo "gw_tau = $gw_tau" >> "user_nl_cam_$(printf "%04d" $ie)"
 done
 
 echo "`date` -- END CAM_ASSIMILATE"
