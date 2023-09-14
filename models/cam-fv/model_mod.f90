@@ -398,7 +398,7 @@ call get_model_variable_indices(index_in, iloc, jloc, vloc, var_id=myvarid, dom_
 
 nd = get_num_dims(mydom, myvarid)
 if (get_variable_name(mydom, myvarid) == 'gw_tau') then
-   location = get_location(iloc, jlat, 1.0D-4 ,VERTISUNDEF)
+   location = set_location(iloc, jlat, 1.0D-4 ,VERTISUNDEF)
    return
 endif
 
