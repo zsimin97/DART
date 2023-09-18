@@ -59,7 +59,7 @@ use  ensemble_manager_mod,  only : ensemble_type, get_my_num_vars, get_my_vars
 use distributed_state_mod,  only : get_state
 use   state_structure_mod,  only : add_domain, get_dart_vector_index, get_domain_size, &
                                    get_dim_name, get_kind_index, get_num_dims, &
-                                   get_num_variables, get_varid_from_kind, &
+                                   get_num_variables, get_varid_from_kind, get_variable_name, &
                                    get_model_variable_indices, state_structure_info
 use  netcdf_utilities_mod,  only : nc_get_variable, nc_get_variable_size, &
                                    nc_add_attribute_to_variable, &
@@ -2332,7 +2332,7 @@ type(ensemble_type), optional, intent(in)  :: ens_handle
 
 character(len=*), parameter :: routine = 'get_close_state'
 
-integer :: i, status, this, vert_type
+integer :: i, status, this, vert_type, q_ind
 real(r8) :: vert_value, extra_damping_dist
 real(r8), parameter :: LARGE_DIST = 999999.0  ! positive and large
 
