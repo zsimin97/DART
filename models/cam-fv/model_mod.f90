@@ -398,7 +398,7 @@ call get_model_variable_indices(index_in, iloc, jloc, vloc, var_id=myvarid, dom_
 
 nd = get_num_dims(mydom, myvarid)
 if (get_variable_name(mydom, myvarid) == 'gw_tau') then
-   location = set_location(iloc, jlat, 1.0D-4 ,VERTISUNDEF)
+   location = get_location_from_index(iloc, jloc, 52 , myqty, nd)
    return
 endif
 
@@ -2405,7 +2405,7 @@ if (estimate_tau) then
    do i=1, num_close
      q_ind= close_ind(i)
        if (loc_qtys(q_ind)== QTY_1D_PARAMETER) then
-         disk(i) = dist(i) * 0.8_r8
+         dist(i) = dist(i) * 0.8_r8
        endif
     enddo
 endif 
