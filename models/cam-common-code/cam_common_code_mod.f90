@@ -332,7 +332,7 @@ endif
 
 domain_id = add_domain(cam_template_filename, nfields-1, var_names, kind_list, &
                        clamp_vals, update_list)
-gw_domain_id = add_domain(tau_file_name, 1, gw_tau, QTY_1D_PARAMETER)
+gw_domain_id = add_domain(tau_file_name, 1, (/'gw_tau'/), (/QTY_1D_PARAMETER/))
 
 end subroutine set_estimate_variable_info
 
