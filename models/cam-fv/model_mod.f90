@@ -96,7 +96,7 @@ use    cam_common_code_mod, only : above_ramp_start, are_damping, build_cam_pres
 use cam_common_code_mod, only : nc_write_model_atts, grid_data, read_grid_info, &
                                 set_cam_variable_info, set_estimate_variable_info, MAX_STATE_VARIABLES, &
                                 num_state_table_columns, MAX_PERT, &
-                                shortest_time_between_assimilations, domain_id, gw_domain_id &
+                                shortest_time_between_assimilations, domain_id, gw_domain_id, &
                                 cuse_log_vertical_scale, &
                                 cno_normalization_of_scale_heights, &
                                 cdebug_level, &
