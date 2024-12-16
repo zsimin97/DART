@@ -14,7 +14,7 @@ module model_mod
 use             types_mod,  only : MISSING_R8, MISSING_I, i8, r8, vtablenamelength, &
                                    gravity, DEG2RAD
 use      time_manager_mod,  only : set_calendar_type
-use          location_mod,  only : location_type, set_vertical, set_location, &
+use          location_mod,  only : location_type, set_vertical, set_location, get_lon, get_lat, get_vloc, get_which_vert, &
                                    get_location, write_location, is_vertical, &
                                    VERTISUNDEF, VERTISSURFACE, VERTISLEVEL, &
                                    VERTISPRESSURE, VERTISHEIGHT, &
@@ -94,7 +94,7 @@ use    cam_common_code_mod, only : above_ramp_start, are_damping, build_cam_pres
                                    set_vert_localization, vert_interp, vertical_localization_type, write_model_time
 
 use cam_common_code_mod, only : nc_write_model_atts, grid_data, read_grid_info, &
-                                set_cam_variable_info, set_estimate_variable_info, MAX_STATE_VARIABLES, &
+                                set_cam_variable_info,  set_estimate_variable_info, MAX_STATE_VARIABLES, &
                                 num_state_table_columns, MAX_PERT, &
                                 shortest_time_between_assimilations, domain_id, gw_domain_id, &
                                 cuse_log_vertical_scale, &
@@ -166,7 +166,7 @@ logical            :: use_variable_mean_mass          = .false.
 
 character(len=256) :: tau_file_name                   = 'GW_tau.nc'
 logical            :: estimate_tau                    = .true.
-
+real(r8)           :: gw_tau_vert                     = 0.01_r8  !HK todo need to set something sensible here
 ! in converting to scale height for the vertical: 
 !  set this to .true. to compute the log of the pressure.  
 !  set this to .false. to additionally normalize by the surface
@@ -205,7 +205,8 @@ namelist /model_nml/  &
    using_chemistry,                     &
    debug_level,                         &
    estimate_tau,                        &
-   tau_file_name
+   tau_file_name,                       &
+   gw_tau_vert
 
 ! global variables
 character(len=512) :: string1, string2, string3
@@ -293,10 +294,13 @@ csuppress_grid_info_in_output = suppress_grid_info_in_output
 
 call set_calendar_type('GREGORIAN')
 
-call read_grid_info(cam_template_filename)
-call read_grid_info(tau_file_name)
+!call read_grid_info(tau_file_name)
 ! This non-state variable is used to compute surface elevation.
+call read_grid_info(cam_template_filename)
 call read_cam_phis_array(cam_phis_filename)
+
+!print *, "grid_data%lon%nsize = ", grid_data%lon%nsize
+!print *, "grid_data%lat%nsize = ", grid_data%lat%nsize
 call setup_interpolation() !grid is global
 
 ! initialize global values that are used frequently
@@ -306,8 +310,9 @@ call init_globals()
 ! to set up what will be read into the cam state vector
 call set_cam_variable_info(cam_template_filename, state_variables)
 if (estimate_tau) then
-   call set_estimate_variable_info(tau_file_name, cam_template_filename, state_variables)
-endif
+   !call set_estimate_variable_info(tau_file_name, cam_template_filename, state_variables)
+   call set_estimate_variable_info(tau_file_name)
+endif 
 
 call fill_cam_stagger_info(grid_stagger)
 
@@ -397,12 +402,28 @@ if ( .not. module_initialized ) call static_init_model
 call get_model_variable_indices(index_in, iloc, jloc, vloc, var_id=myvarid, dom_id=mydom, kind_index=myqty)
 
 nd = get_num_dims(mydom, myvarid)
+
+call get_model_variable_indices(index_in, iloc, jloc, vloc, var_id=myvarid, dom_id=mydom, kind_index=myqty)
+
+nd = get_num_dims(mydom, myvarid)
 if (get_variable_name(mydom, myvarid) == 'gw_tau') then
-   location = get_location_from_index(iloc, jloc, 52 , myqty, nd)
-   return
+   ! vertical location set from the namelist option gw_tau_vert
+   ! The vertical coordinate is set to whatever you are localizing in, e.g.pressure,scalehight
+   location = set_location(0.0_r8, 0.0_r8, gw_tau_vert, vertical_localization_type)
+   !print *, "Location:"
+   !print *, "lon : ", get_lon(location)
+   !print *, "lat : ", get_lat(location)
+   !print *, "vloc: ", get_vloc(location)
+   !print *, "which_vert: ", get_which_vert(location)
+else
+   location = get_location_from_index(iloc, jloc, vloc, myqty, nd)
+   !print *, "Location:"
+   !print *, "lon : ", get_lon(location)
+   !print *, "lat : ", get_lat(location)
+   !print *, "vloc: ", get_vloc(location)
+   !print *, "which_vert: ", get_which_vert(location)
 endif
 
-location = get_location_from_index(iloc, jloc, vloc, myqty, nd)
 
 ! return state quantity for this index if requested
 if (present(var_type)) var_type = myqty
@@ -581,14 +602,23 @@ integer :: dom_id
 
 varid = get_varid_from_kind(domain_id, qty)
 dom_id = domain_id
-if (varid < 0) then
-   varid = get_varid_from_kind(gw_domain_id, qty)
-   dom_id = gw_domain_id
+
+if (estimate_tau) then ! check the gw_tau domain
    if (varid < 0) then
-     vals(:) = MISSING_R8
-     my_status = 12
-     return
+      varid = get_varid_from_kind(gw_domain_id, qty)
+      dom_id = gw_domain_id
+      if (varid < 0) then
+        vals(:) = MISSING_R8
+        my_status = 12
+        return
+      endif
    endif
+else
+    if (varid < 0) then
+       vals(:) = MISSING_R8
+       my_status = 12
+       return
+    endif
 endif
 
 state_indx = get_dart_vector_index(lon_index, lat_index, lev_index, dom_id, varid)
@@ -650,13 +680,22 @@ do i=1, ens_size
    state_indx = get_dart_vector_index(lon_index, lat_index, lev_index(i), domain_id, varid)
 
    if (state_indx < 0) then
-      state_indx = get_dart_vector_index(lon_index, lat_index, lev_index(i), gw_domain_id, varid)
-      if (state_indx < 0) then
+
+      if (estimate_tau) then ! check gw_tau domain
+         state_indx = get_dart_vector_index(lon_index, lat_index, lev_index(i), gw_domain_id, varid)
+          if (state_indx < 0) then
+             write(string1,*) 'Should not happen: could not find dart state index from '
+             write(string2,*) 'lon, lat, and lev index :', lon_index, lat_index, lev_index
+             call error_handler(E_ERR,routine,string1,source,revision,revdate,text2=string2)
+             return
+          endif
+      else
           write(string1,*) 'Should not happen: could not find dart state index from '
           write(string2,*) 'lon, lat, and lev index :', lon_index, lat_index, lev_index
           call error_handler(E_ERR,routine,string1,source,revision,revdate,text2=string2)
           return
-      endif    
+      endif
+   
    endif
 
    temp_vals(:) = get_state(state_indx, ens_handle)    ! all the ensemble members for level (i)
@@ -1545,6 +1584,26 @@ subroutine setup_interpolation()
 !print *, 'setting up interpolation: lon/lat sizes = ', grid%lon%nsize, grid%lat%nsize,  &
 !                                                       grid%slon%nsize, grid%slat%nsize
 
+!print *, 'Setting up interpolation: lon/lat sizes = ', grid_data%lon%nsize, grid_data%lat%nsize, &
+!                                                          grid_data%slon%nsize, grid_data%slat%nsize
+
+   ! test grid_data%lon &  grid_data%lat 
+!   if (.not. allocated(grid_data%lon%vals)) then
+!      print *, 'Error: grid_data%lon%vals is not allocated!'
+!   endif
+!   if (.not. allocated(grid_data%lat%vals)) then
+!      print *, 'Error: grid_data%lat%vals is not allocated!'
+!   endif
+
+   ! test grid_data%slon & grid_data%slat 
+!   if (.not. allocated(grid_data%slon%vals)) then
+!      print *, 'Error: grid_data%slon%vals is not allocated!'
+!   endif
+!   if (.not. allocated(grid_data%slat%vals)) then
+!      print *, 'Error: grid_data%slat%vals is not allocated!'
+!   endif
+
+
 ! mass points at cell centers
 call init_quad_interp(GRID_QUAD_IRREG_SPACED_REGULAR, grid_data%lon%nsize, grid_data%lat%nsize, &
                       QUAD_LOCATED_CELL_CENTERS, &
@@ -2315,7 +2374,7 @@ end subroutine get_close_obs
 
 !----------------------------------------------------------------------------
 
-subroutine get_close_state(gc, base_loc, base_type, locs, loc_qtys, loc_indx, &
+subroutine get_close_state(gc, base_loc, base_type, locs_in, loc_qtys, loc_indx, &
                            num_close, close_ind, dist, ens_handle)
 
 ! The specific type of the base observation, plus the generic kinds list
@@ -2323,7 +2382,7 @@ subroutine get_close_state(gc, base_loc, base_type, locs, loc_qtys, loc_indx, &
 ! distance computation is needed.
 
 type(get_close_type),          intent(in)  :: gc
-type(location_type),           intent(inout)  :: base_loc, locs(:)
+type(location_type),           intent(inout)  :: base_loc, locs_in(:)
 integer,                       intent(in)  :: base_type, loc_qtys(:)
 integer(i8),                   intent(in)  :: loc_indx(:)
 integer,                       intent(out) :: num_close, close_ind(:)
@@ -2335,6 +2394,34 @@ character(len=*), parameter :: routine = 'get_close_state'
 integer :: i, status, this, vert_type, q_ind
 real(r8) :: vert_value, extra_damping_dist
 real(r8), parameter :: LARGE_DIST = 999999.0  ! positive and large
+
+integer :: idx(1)  ! gw_tau index in loc_qtys
+logical :: gw_tau_found ! gw_tau found by loc_get_close_state 
+real(r8) :: lon_lat_vert(3), observation_lon_lat_vert(3)
+type(location_type) :: locs(size(locs_in))
+
+dist(:) =       LARGE_DIST
+! --- Set tau_gw location equal to the observation location in the horizontal ---
+locs(:) = locs_in(:)  ! have to make a copy inside this subroutine to change a location
+
+idx = findloc(loc_qtys, QTY_1D_PARAMETER)
+if (idx(1) > 0) then
+
+   ! unpack the location type into an array (lon, lat, vertical)
+   lon_lat_vert = get_location(locs(idx(1)))
+   observation_lon_lat_vert = get_location(base_loc)
+
+   ! lon, lat are set to the location of the observation. This gives you
+   ! an infinite localization radius in the horizontal by ensuring that
+   ! the horizontal distance from an observation to gw_tau is always = 0
+   locs(idx(1)) = set_location(observation_lon_lat_vert(1),&  ! set lon of gw_tau equal to observation
+                               observation_lon_lat_vert(2),&  ! set lat of gw_tau equal to observation
+                               gw_tau_vert,                &  ! vertical value from namelist
+                               vertical_localization_type)                 ! coordiate you are localizing in, e.g. pressure, scaleheight
+
+call write_location(-1, locs(idx(1)))  ! uncomment this is you want to print out the location of gw_tau
+endif
+
 
 ! if absolute distances aren't needed, or vertical localization isn't on,
 ! the default version works fine since no conversion will be needed and
@@ -2356,7 +2443,7 @@ vert_type = query_location(base_loc)
 
 if (vert_type /= vertical_localization_type) then
    call convert_vert_one_obs(ens_handle, base_loc, base_type, &
-                             vertical_localization_type, status)
+           vertical_localization_type, status)
    if (status /= 0) then
       num_close = 0
       return
@@ -2369,10 +2456,11 @@ endif
 call loc_get_close_state(gc, base_loc, base_type, locs, loc_qtys, loc_indx, &
                          num_close, close_ind)
 
+gw_tau_found = .false.
 ! compute distances, converting vertical first if need be.
 do i=1, num_close
    this = close_ind(i)
-
+   if (this == idx(1) ) gw_tau_found = .true.
    vert_type = query_location(locs(this))
 !print *, 'close_s, vval, vtype = ', i, query_location(locs(this), 'VLOC'), vert_type
 
@@ -2389,8 +2477,8 @@ do i=1, num_close
 
    dist(i) = get_dist(base_loc, locs(this))
 
-   ! do not try to damp impacts when obs has "vert is undefined".  
-   ! the impact will go all the way to the model top.  
+   ! do not try to damp impacts when obs has "vert is undefined".
+   ! the impact will go all the way to the model top.
    ! this is the agreed-on functionality.
    if (.not. are_damping .or. vert_type == VERTISUNDEF) cycle
 
@@ -2400,15 +2488,19 @@ do i=1, num_close
    endif
 enddo
 
+if (idx(1) > 0) then  ! gw_tau on this processer
+     if (gw_tau_found) then  ! recalculate distance using horiz obslocation
+        dist(idx(1)) = get_dist(base_loc, locs(idx(1)))
+     else  ! add to num_close and calculate distance using obs location
+        num_close = num_close + 1
+        close_ind(num_close) = idx(1)
+        dist(num_close) = get_dist(base_loc, locs(idx(1)))
+     endif
 
-if (estimate_tau) then
-   do i=1, num_close
-     q_ind= close_ind(i)
-       if (loc_qtys(q_ind)== QTY_1D_PARAMETER) then
-         dist(i) = dist(i) * 0.8_r8
-       endif
-    enddo
-endif 
+     print*, 'gw_tau distance', dist(num_close)
+     call write_location(-1, locs(idx(1)))
+     call write_location(-1, base_loc)
+endif
 
 end subroutine get_close_state
 

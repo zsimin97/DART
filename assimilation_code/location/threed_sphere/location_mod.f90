@@ -43,7 +43,7 @@ public :: location_type, get_location, set_location, &
           set_vertical, is_vertical, get_vertical_localization_coord, get_close, &
           set_vertical_localization_coord, convert_vertical_obs, convert_vertical_state, &
           VERTISUNDEF, VERTISSURFACE, VERTISLEVEL, VERTISPRESSURE, &
-          VERTISHEIGHT, VERTISSCALEHEIGHT, print_get_close_type
+          VERTISHEIGHT, VERTISSCALEHEIGHT, print_get_close_type ,get_lon,get_lat,get_vloc,get_which_vert
 
 
 character(len=*), parameter :: source = 'threed_sphere/location_mod.f90'
@@ -68,6 +68,7 @@ integer, parameter :: VERTISSCALEHEIGHT =  4  ! by scale height (unitless)
 
 type location_type
    private
+!   public :: lon, lat, vloc, which_vert
    real(r8) :: lon, lat        ! lon, lat are stored in radians
    real(r8) :: vloc            ! units vary based on value of which_vert
    integer  :: which_vert      ! determines if vert is level, height, pressure, ...
@@ -666,7 +667,34 @@ set_location_array = set_location_single(list(1), list(2), list(3), nint(list(4)
 end function set_location_array
 
 !----------------------------------------------------------------------------
+!============================================================================
+! output localization %20241007
+!===========================================================================
+function get_lon(loc) result(lon)
+   type(location_type), intent(in) :: loc
+   real(r8) :: lon
+   lon = loc%lon
+end function get_lon
 
+function get_lat(loc) result(lat)
+   type(location_type), intent(in) :: loc
+   real(r8) :: lat
+   lat = loc%lat
+end function get_lat
+
+function get_vloc(loc) result(vloc)
+   type(location_type), intent(in) :: loc
+   real(r8) :: vloc
+   vloc = loc%vloc
+end function get_vloc
+
+function get_which_vert(loc) result(which_vert)
+   type(location_type), intent(in) :: loc
+   integer :: which_vert
+   which_vert = loc%which_vert
+end function get_which_vert
+
+!==========================================================================   
 function set_location_missing()
 
 ! Initialize a location type to indicate the contents are unset.

@@ -1,0 +1,10 @@
+netcdf gw_tau {
+dimensions:
+	parameter = 1 ;
+	time = UNLIMITED ; // (1 currently)
+variables:
+	double gw_tau(time, parameter) ;
+
+// global attributes:
+		:title = "example gw_tau netcdf file for DART" ;
+}

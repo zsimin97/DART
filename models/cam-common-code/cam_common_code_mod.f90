@@ -259,82 +259,15 @@ domain_id = add_domain(cam_template_filename, nfields, var_names, kind_list, &
 
 end subroutine set_cam_variable_info
 
-subroutine set_estimate_variable_info(tau_file_name, cam_template_filename, variable_array)
+!-----------------------------------------------------------------------
+subroutine set_estimate_variable_info(tau_file_name)
 
 character(len=*), intent(in)  :: tau_file_name
-character(len=*), intent(in)  :: cam_template_filename
-character(len=*), intent(in)  :: variable_array(:)
 
-character(len=*), parameter :: routine = 'set_estimate_variable_info:'
-
-integer :: i, nfields
-integer, parameter :: MAX_STRING_LEN = 128
-
-character(len=MAX_STRING_LEN) :: varname    ! column 1, NetCDF variable name
-character(len=MAX_STRING_LEN) :: dartstr    ! column 2, DART Quantity
-character(len=MAX_STRING_LEN) :: minvalstr  ! column 3, Clamp min val
-character(len=MAX_STRING_LEN) :: maxvalstr  ! column 4, Clamp max val
-character(len=MAX_STRING_LEN) :: updatestr  ! column 5, Update output or not
-
-character(len=vtablenamelength) :: var_names(MAX_STATE_VARIABLES) = ' '
-logical  :: update_list(MAX_STATE_VARIABLES)   = .FALSE.
-integer  ::   kind_list(MAX_STATE_VARIABLES)   = MISSING_I
-real(r8) ::  clamp_vals(MAX_STATE_VARIABLES,2) = MISSING_R8
-
-nfields = 0
-ParseVariables : do i = 1, MAX_STATE_VARIABLES
-
-   varname   = variable_array(num_state_table_columns*i-4)
-   dartstr   = variable_array(num_state_table_columns*i-3)
-   minvalstr = variable_array(num_state_table_columns*i-2)
-   maxvalstr = variable_array(num_state_table_columns*i-1)
-   updatestr = variable_array(num_state_table_columns*i  )
-
-   if ( varname == ' ' .and. dartstr == ' ' ) exit ParseVariables ! Found end of list.
-
-   if ( varname == ' ' .or.  dartstr == ' ' ) then
-      string1 = 'model_nml:model "state_variables" not fully specified'
-      call error_handler(E_ERR,routine,string1,source,revision,revdate)
-   endif
-
-   ! Make sure DART kind is valid
-
-   if( get_index_for_quantity(dartstr) < 0 ) then
-      write(string1,'(3A)') 'there is no obs_kind "', trim(dartstr), '" in obs_kind_mod.f90'
-      call error_handler(E_ERR,routine,string1,source,revision,revdate)
-   endif
-
-   call to_upper(minvalstr)
-   call to_upper(maxvalstr)
-   call to_upper(updatestr)
-
-   var_names(   i) = varname
-   kind_list(   i) = get_index_for_quantity(dartstr)
-   clamp_vals(i,1) = string_to_real(minvalstr)
-   clamp_vals(i,2) = string_to_real(maxvalstr)
-   update_list( i) = string_to_logical(updatestr, 'UPDATE')
-
-   nfields = nfields + 1
-
-enddo ParseVariables
-
-if (nfields == MAX_STATE_VARIABLES) then
-   write(string1,'(2A)') 'WARNING: There is a possibility you need to increase ', &
-                         'MAX_STATE_VARIABLES in the global variables in model_mod.f90'
-
-   write(string2,'(A,i4,A)') 'WARNING: you have specified at least ', nfields, &
-                             ' perhaps more'
-
-   call error_handler(E_MSG,routine,string1,source,revision,revdate,text2=string2)
-endif
-
-! CAM only has a single domain (only a single grid, no nests or multiple grids)
-
-domain_id = add_domain(cam_template_filename, nfields-1, var_names, kind_list, &
-                       clamp_vals, update_list)
 gw_domain_id = add_domain(tau_file_name, 1, (/'gw_tau'/), (/QTY_1D_PARAMETER/))
 
 end subroutine set_estimate_variable_info
+
 
 !-----------------------------------------------------------------------
 !> Read the data from the various cam grid arrays 
@@ -702,11 +635,8 @@ varid = get_varid_from_kind(domain_id, obs_qty)
 
 ! in the state vector
 if (varid > 0) then
-   varid = get_varid_from_kind(gw_domain_id, obs_qty)
-   if (varid > 0) then
-      my_status = 0
-      return
-  endif
+   my_status = 0
+   return
 endif
 
 ! add any quantities that can be interpolated to this list if they

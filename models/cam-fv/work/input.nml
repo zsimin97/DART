@@ -447,7 +447,8 @@
 
 &obs_sequence_tool_nml
    num_input_files    = 2
-   filename_seq       = 'obs_seq.one', 'obs_seq.two'
+!   filename_seq       = 'obs_seq.one', 'obs_seq.two'
+   filename_seq_list  = 'list1'
    filename_out       = 'obs_seq.processed'
    first_obs_days     = -1
    first_obs_seconds  = -1
@@ -534,17 +535,18 @@
 ! these are specified in hectopascals (hPa)
 
 &obs_diag_nml
-   obs_sequence_name = 'obs_seq.final'
+   obs_sequence_name = 'obs_est6h.list'
    obs_sequence_list = ''
-   first_bin_center  =  BOGUS_YEAR, 1, 1, 0, 0, 0
-   last_bin_center   =  BOGUS_YEAR, 1, 2, 0, 0, 0
+   first_bin_center  =  2009, 2, 1, 0, 0, 0
+   last_bin_center   =  2009, 2, 20, 23, 0, 0
    bin_separation    =     0, 0, 0, 6, 0, 0
    bin_width         =     0, 0, 0, 6, 0, 0
    time_to_skip      =     0, 0, 1, 0, 0, 0
    max_num_bins      = 1000
    trusted_obs       = 'null'
-   plevel_edges = 1035.5, 962.5, 887.5, 775, 600, 450, 350, 275, 225,   175,   125,   75,   35,   15,    2
-   hlevel_edges =    200, 630,   930,  1880,3670,5680,7440,9130,10530,12290, 14650,18220,23560,29490,43000
+!   plevel_edges = 1035.5, 962.5, 887.5, 775, 600, 450, 350, 275, 225,   175,   125,   75,   35,   15,    2
+!   hlevel_edges =    200, 630,   930,  1880,3670,5680,7440,9130,10530,12290, 14650,18220,23560,29490,43000
+   hlevel_edges = 500, 15000, 25000, 35000, 45000, 55000, 65000, 75000, 85000,95000, 105000, 115000, 125000, 135000, 145000, 155000
    Nregions     = 3
    reg_names    = 'Northern Hemisphere', 'Tropics', 'Southern Hemisphere'
    lonlim1      =   0.0,   0.0,   0.0
